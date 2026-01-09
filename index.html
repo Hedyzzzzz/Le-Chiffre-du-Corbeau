@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Chiffre du Corbeau</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #cf1515; /* Rouge sang vif */
+            --primary-dim: #690a0a;
+            --bg-deep: #050505;
+            --glass-bg: rgba(20, 20, 20, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Manrope', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- BACKGROUND ANIMATION (CANVAS) --- */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        /* --- CONTAINER PRINCIPAL --- */
+        .interface-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 90%;
+            max-width: 1100px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 4px;
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.8), 
+                        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            overflow: hidden;
+        }
+
+        /* DÉCORATIONS D'ANGLES */
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary);
+            transition: all 0.4s ease;
+            opacity: 0.7;
+        }
+        .tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+        .tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+        .bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+        .br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+        .interface-wrapper:hover .corner {
+            width: 60px;
+            height: 60px;
+            opacity: 1;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        /* --- HEADER --- */
+        header {
+            text-align: center;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #fff, #999);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+            text-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--primary);
+            background: rgba(207, 21, 21, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(207, 21, 21, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- MOTEUR DE TRADUCTION --- */
+        .translator-grid {
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 20px;
+            height: 450px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .panel-label {
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px;
+        }
+
+        textarea {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            border-radius: 2px;
+            color: #fff;
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            resize: none;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: inset 0 0 30px rgba(207, 21, 21, 0.1);
+        }
+
+        /* Barre de défilement stylisée */
+        textarea::-webkit-scrollbar { width: 6px; }
+        textarea::-webkit-scrollbar-track { background: #0a0a0a; }
+        textarea::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        textarea::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* --- CONTROLES CENTRAUX --- */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-action {
+            width: 50px;
+            height: 50px;
+            background: transparent;
+            border: 1px solid #444;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .btn-action:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-dim);
+            transform: scale(1.1);
+            background: rgba(207, 21, 21, 0.05);
+        }
+
+        .btn-translate-main {
+            /* Bouton principal caché visuellement sur desktop car traduction auto, 
+               mais gardé pour mobile/accessibilité */
+            display: none; 
+        }
+
+        /* --- NOTIFICATION COPIE --- */
+        .copy-hint {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            background: rgba(0,0,0,0.8);
+            padding: 5px 10px;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        .input-group:hover .copy-hint { opacity: 0.6; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 850px) {
+            .translator-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto 1fr;
+                height: auto;
+            }
+            .controls {
+                flex-direction: row;
+                padding: 10px 0;
+            }
+            .btn-action { transform: rotate(90deg); } /* Rotation icone pour vertical */
+            .btn-action:hover { transform: rotate(90deg) scale(1.1); }
+            textarea { height: 180px; }
+            h1 { font-size: 1.8rem; }
+            
+            .btn-translate-main {
+                display: flex;
+                width: auto;
+                height: auto;
+                padding: 10px 20px;
+                border-radius: 4px;
+                font-family: 'Cinzel', serif;
+                font-size: 0.9rem;
+                transform: none;
+            }
+            .btn-translate-main:hover { transform: none; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="interface-wrapper">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+
+        <header>
+            <h1>Le Chiffre du Corbeau</h1>
+            <div class="status-badge">Système Sécurisé • V2.0</div>
+        </header>
+
+        <div class="translator-grid">
+            <div class="input-group">
+                <div class="panel-label">
+                    <span id="lbl-src">Français (Clair)</span>
+                    <span style="font-size:0.7em; opacity:0.5;">INPUT</span>
+                </div>
+                <textarea id="txt-src" placeholder="Saisissez votre message..."></textarea>
+            </div>
+
+            <div class="controls">
+                <button id="btn-swap" class="btn-action" title="Inverser les langues">⇄</button>
+                <button id="btn-trans" class="btn-action btn-translate-main">TRADUIRE</button>
+            </div>
+
+            <div class="input-group">
+                <div class="panel-label">
+                    <span id="lbl-dest" style="color:var(--primary);">Cryptage (Ombre)</span>
+                    <span style="font-size:0.7em; opacity:0.5;">OUTPUT</span>
+                </div>
+                <textarea id="txt-dest" readonly placeholder="En attente de données..."></textarea>
+                <div class="copy-hint" id="copy-msg">Cliquer pour copier</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- 1. CONFIGURATION DICTIONNAIRE & LOGIQUE (INCHANGÉE) --- */
+        const dictionary = {
+            "bonjour": "OSU", "merci": "ARIGA", "oui": "HAI", "non": "IE",
+            "ninja": "SHINOBI", "ennemi": "TEKI", "ami": "NAKAMA", "message": "FUMI",
+            "secret": "HIMITSU", "nuit": "YORU", "jour": "HIRA", "cacher": "KAKUSU",
+            "attaquer": "KIRU", "fuir": "NIGERU", "rendez-vous": "AU", "village": "SATO",
+            "chef": "KAGE", "mort": "SHI", "vie": "SEI", "trahison": "URAGIRI",
+            "argent": "RYO", "danger": "KIKEN", "silence": "SHIJIMA", "ombre": "KAGE",
+            "corbeau": "KARASU"
+        };
+
+        const reverseDictionary = {};
+        for (let key in dictionary) reverseDictionary[dictionary[key]] = key;
+
+        const cipherMap = {
+            'a': 'ka', 'b': 'tu', 'c': 'mi', 'd': 'te', 'e': 'ku', 
+            'f': 'lu', 'g': 'ji', 'h': 'ri', 'i': 'ki', 'j': 'zu', 
+            'k': 'me', 'l': 'na', 'm': 'mo', 'n': 'ni', 'o': 'to', 
+            'p': 'ra', 'q': 'ze', 'r': 're', 's': 'shi', 't': 'chi', 
+            'u': 'mu', 'v': 'ru', 'w': 'wa', 'x': 'so', 'y': 'ya', 
+            'z': 'za', ' ': '  '
+        };
+
+        const reverseCipherMap = {};
+        for (let k in cipherMap) reverseCipherMap[cipherMap[k]] = k;
+        const sortedCodes = Object.keys(reverseCipherMap).sort((a, b) => b.length - a.length);
+
+        let modeFrancaisVersCode = true;
+        const txtSrc = document.getElementById('txt-src');
+        const txtDest = document.getElementById('txt-dest');
+        const lblSrc = document.getElementById('lbl-src');
+        const lblDest = document.getElementById('lbl-dest');
+        const copyMsg = document.getElementById('copy-msg');
+
+        function cleanStr(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        }
+
+        function encode(text) {
+            const tokens = text.split(/([a-zA-Zà-ÿ0-9]+)/g); 
+            return tokens.map(token => {
+                const lowerToken = cleanStr(token);
+                if (dictionary[lowerToken]) return dictionary[lowerToken];
+                if (/[a-z0-9]/.test(lowerToken)) {
+                    let encodedWord = "";
+                    for (let char of lowerToken) encodedWord += cipherMap[char] || char;
+                    return encodedWord;
+                }
+                return token;
+            }).join('');
+        }
+
+        function decode(text) {
+            const tokens = text.split(/([A-Z]+)/g);
+            return tokens.map(token => {
+                if (reverseDictionary[token]) return reverseDictionary[token];
+                let result = "";
+                let buffer = token.toLowerCase();
+                let i = 0;
+                while (i < buffer.length) {
+                    let matchFound = false;
+                    for (let code of sortedCodes) {
+                        if (buffer.startsWith(code, i)) {
+                            result += reverseCipherMap[code];
+                            i += code.length;
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    if (!matchFound) {
+                        result += buffer[i];
+                        i++;
+                    }
+                }
+                return result;
+            }).join('');
+        }
+
+        function runTranslation() {
+            const input = txtSrc.value;
+            if(!input) { txtDest.value = ""; return; }
+            txtDest.value = modeFrancaisVersCode ? encode(input) : decode(input);
+        }
+
+        txtSrc.addEventListener('input', runTranslation);
+        document.getElementById('btn-trans').addEventListener('click', runTranslation);
+
+        document.getElementById('btn-swap').addEventListener('click', () => {
+            const contentSrc = txtSrc.value;
+            const contentDest = txtDest.value;
+            
+            txtSrc.value = contentDest;
+            txtDest.value = contentSrc; 
+            modeFrancaisVersCode = !modeFrancaisVersCode;
+
+            if(modeFrancaisVersCode) {
+                lblSrc.textContent = "Français (Clair)";
+                lblDest.textContent = "Cryptage (Ombre)";
+                lblDest.style.color = "var(--primary)";
+                lblSrc.style.color = "var(--text-muted)";
+                txtDest.setAttribute('readonly', true);
+                txtSrc.removeAttribute('readonly');
+            } else {
+                lblSrc.textContent = "Cryptage (Ombre)";
+                lblSrc.style.color = "var(--primary)";
+                lblDest.textContent = "Français (Clair)";
+                lblDest.style.color = "var(--text-muted)";
+                txtSrc.removeAttribute('readonly'); // On permet l'edit des deux côtés lors du swap inverse pour fluidité
+            }
+            runTranslation();
+        });
+
+        txtDest.addEventListener('click', () => {
+            if(!txtDest.value) return;
+            txtDest.select();
+            document.execCommand('copy');
+            copyMsg.textContent = "COPIÉ DANS LE PRESSE-PAPIER";
+            copyMsg.style.color = "#fff";
+            copyMsg.style.borderColor = "var(--primary)";
+            setTimeout(() => {
+                copyMsg.textContent = "Cliquer pour copier";
+                copyMsg.style.color = "var(--text-muted)";
+                copyMsg.style.borderColor = "#333";
+            }, 2000);
+        });
+
+        /* --- 2. EFFET VISUEL (PARTICULES "CENDRES") --- */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vy = -(Math.random() * 0.5 + 0.2); // Monte doucement
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2 + 0.5;
+                this.alpha = Math.random() * 0.5 + 0.1;
+                this.life = Math.random() * 100 + 50;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                this.alpha = (this.life / 150) * 0.5;
+
+                if (this.y < 0 || this.life <= 0) this.reset();
+                // Reset si sort en bas (rare car ça monte)
+                if (this.y > height) this.y = height;
+                if (this.x > width) this.x = 0;
+                if (this.x < 0) this.x = width;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(180, 20, 20, ${this.alpha})`; // Rouge sombre
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 70; i++) particles.push(new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
